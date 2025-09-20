@@ -40,6 +40,7 @@ CREATE TYPE vehicle_type AS ENUM (
     'velo',
     'moto',
     'tricycle',
+    'tricycle_cargo',
     'voiture',
     'camion'
 );

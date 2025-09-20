@@ -1,0 +1,191 @@
+{
+    "@@locale": "en",
+    "appTitle": "eService",
+    "@appTitle": {
+        "description": "Application title"
+    },
+    "settings": "Settings",
+    "@settings": {
+        "description": "Settings page title"
+    },
+    "language": "Language",
+    "@language": {
+        "description": "Language setting"
+    },
+    "theme": "Theme",
+    "@theme": {
+        "description": "Theme setting"
+    },
+    "darkMode": "Dark Mode",
+    "@darkMode": {
+        "description": "Dark mode setting"
+    },
+    "lightMode": "Light Mode",
+    "@lightMode": {
+        "description": "Light mode setting"
+    },
+    "systemMode": "System Default",
+    "@systemMode": {
+        "description": "System default mode setting"
+    },
+    "english": "English",
+    "@english": {
+        "description": "English language"
+    },
+    "french": "Français",
+    "@french": {
+        "description": "French language"
+    },
+    "home": "Home",
+    "@home": {
+        "description": "Home page"
+    },
+    "welcome": "Welcome",
+    "@welcome": {
+        "description": "Welcome message"
+    },
+    "appearance": "Appearance",
+    "@appearance": {
+        "description": "Appearance section"
+    },
+    "general": "General",
+    "@general": {
+        "description": "General settings section"
+    },
+    "save": "Save",
+    "@save": {
+        "description": "Save button"
+    },
+    "cancel": "Cancel",
+    "@cancel": {
+        "description": "Cancel button"
+    },
+    "ok": "OK",
+    "@ok": {
+        "description": "OK button"
+    },
+    "error": "Error",
+    "@error": {
+        "description": "Error message"
+    },
+    "success": "Success",
+    "@success": {
+        "description": "Success message"
+    },
+    "warning": "Warning",
+    "@warning": {
+        "description": "Warning message"
+    },
+    "info": "Information",
+    "@info": {
+        "description": "Information message"
+    },
+    "confirmationTitle": "Confirmation",
+    "@confirmationTitle": {
+        "description": "Confirmation dialog title"
+    },
+    "areYouSure": "Are you sure?",
+    "@areYouSure": {
+        "description": "Confirmation message"
+    },
+    "yes": "Yes",
+    "@yes": {
+        "description": "Yes button"
+    },
+    "no": "No",
+    "@no": {
+        "description": "No button"
+    },
+    "selectLanguage": "Select Language",
+    "@selectLanguage": {
+        "description": "Select language dialog title"
+    },
+    "selectTheme": "Select Theme",
+    "@selectTheme": {
+        "description": "Select theme dialog title"
+    },
+    "about": "About",
+    "@about": {
+        "description": "About section"
+    },
+    "version": "Version",
+    "@version": {
+        "description": "Version label"
+    },
+    "privacyPolicy": "Privacy Policy",
+    "@privacyPolicy": {
+        "description": "Privacy policy link"
+    },
+    "termsOfService": "Terms of Service",
+    "@termsOfService": {
+        "description": "Terms of service link"
+    },
+    "help": "Help",
+    "@help": {
+        "description": "Help section"
+    },
+    "contactUs": "Contact Us",
+    "@contactUs": {
+        "description": "Contact us link"
+    },
+    "logout": "Logout",
+    "@logout": {
+        "description": "Logout button"
+    },
+    "login": "Login",
+    "@login": {
+        "description": "Login button"
+    },
+    "register": "Register",
+    "@register": {
+        "description": "Register button"
+    },
+    "email": "Email",
+    "@email": {
+        "description": "Email field label"
+    },
+    "password": "Password",
+    "@password": {
+        "description": "Password field label"
+    },
+    "confirmPassword": "Confirm Password",
+    "@confirmPassword": {
+        "description": "Confirm password field label"
+    },
+    "forgotPassword": "Forgot Password?",
+    "@forgotPassword": {
+        "description": "Forgot password link"
+    },
+    "profile": "Profile",
+    "@profile": {
+        "description": "Profile page"
+    },
+    "editProfile": "Edit Profile",
+    "@editProfile": {
+        "description": "Edit profile button"
+    },
+    "changePassword": "Change Password",
+    "@changePassword": {
+        "description": "Change password button"
+    },
+    "notifications": "Notifications",
+    "@notifications": {
+        "description": "Notifications settings"
+    },
+    "enableNotifications": "Enable Notifications",
+    "@enableNotifications": {
+        "description": "Enable notifications toggle"
+    },
+    "account": "Account",
+    "@account": {
+        "description": "Account section"
+    },
+    "security": "Security",
+    "@security": {
+        "description": "Security section"
+    },
+    "preferences": "Preferences",
+    "@preferences": {
+        "description": "Preferences section"
+    }
+}
