@@ -107,7 +107,7 @@ CREATE TABLE addresses (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(100),
     coordinates GEOGRAPHY(Point, 4326) NOT NULL,
-    street_address TEXT NOT NULL,
+    street_address TEXT,
     neighborhood VARCHAR(255),
     city VARCHAR(255),
     country VARCHAR(100) DEFAULT 'Côte d''Ivoire',
@@ -127,7 +127,7 @@ CREATE TABLE services (
     icon_url TEXT,
     is_active BOOLEAN DEFAULT true,
     min_order_amount DECIMAL(10,2),
-    commission_rate DECIMAL(5,2) DEFAULT 0.15, -- 15% par défaut
+    commission_rate DECIMAL(5,2) DEFAULT 0.15, -- 10% par défaut
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     settings JSONB DEFAULT '{}'::jsonb
@@ -162,7 +162,7 @@ CREATE TABLE providers (
 CREATE TABLE provider_schedules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     provider_id UUID REFERENCES providers(id) ON DELETE CASCADE,
-    day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+    day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 7),
     opening_time TIME NOT NULL,
     closing_time TIME NOT NULL,
     is_closed BOOLEAN DEFAULT false,
@@ -196,6 +196,7 @@ CREATE TABLE dish_categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     provider_id UUID REFERENCES providers(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
+    icon_url TEXT,
     description TEXT,
     sort_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
@@ -209,7 +210,7 @@ CREATE TABLE products (
     category_id UUID REFERENCES dish_categories(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    images TEXT[],
+    images_url TEXT[],
     base_price DECIMAL(10,2) NOT NULL,
     discount_price DECIMAL(10,2),
     preparation_time INTEGER, -- en minutes
@@ -584,7 +585,7 @@ CREATE TABLE promo_code_usage (
 CREATE TABLE gas_bottle_types (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     size VARCHAR(20) NOT NULL, -- '6kg', '12kg', '25kg', '50kg'
-    brand VARCHAR(50),
+    brand VARCHAR(50), -- La marque
     deposit_price DECIMAL(10,2), -- Prix de la consigne
     refill_price DECIMAL(10,2),
     purchase_price DECIMAL(10,2),
