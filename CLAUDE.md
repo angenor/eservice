@@ -53,7 +53,16 @@ The application follows standard Flutter project structure with:
 
 ## Database Architecture
 
-The project includes SQL schema definitions in `bank/mode_de_donnees/` suggesting a backend database integration, likely using Supabase service given the presence of policies.sql.
+**IMPORTANT**: For any data implementation, widgets that interact with data, or database-related functionality, you MUST refer to `bank/mode_de_donnees/README.md` which contains links to all essential database files and comprehensive documentation.
+
+The project includes SQL schema definitions in `bank/mode_de_donnees/` suggesting a backend database integration using Supabase service:
+- `schema.sql` - Complete table definitions, types and indexes
+- `functions.sql` - Utility functions, triggers and CRON jobs
+- `policies.sql` - Row Level Security (RLS) policies
+- `README.md` - **PRIMARY REFERENCE** for all database architecture and implementation guidance
+
+### Migration Scripts
+All database migration scripts must be organized in: `bank/mode_de_donnees/migration_script/`
 
 ## Flutter Configuration
 

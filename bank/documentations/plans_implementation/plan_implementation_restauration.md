@@ -1422,44 +1422,44 @@ void main() {
 ```yaml
 dependencies:
   # BLoC Pattern
-  flutter_bloc: dernière_version_stable
-  bloc: dernière_version_stable
-  equatable: dernière_version_stable
-  bloc_concurrency: dernière_version_stable
+  flutter_bloc: dernière_version_stable_compatible
+  bloc: dernière_version_stable_compatible
+  equatable: dernière_version_stable_compatible
+  bloc_concurrency: dernière_version_stable_compatible
 
   # Dependency Injection
-  get_it: dernière_version_stable
-  injectable: dernière_version_stable
+  get_it: dernière_version_stable_compatible
+  injectable: dernière_version_stable_compatible
 
   # Supabase
-  supabase_flutter: dernière_version_stable
+  supabase_flutter: dernière_version_stable_compatible
 
   # State Persistence
-  hydrated_bloc: dernière_version_stable
-  hive: dernière_version_stable
+  hydrated_bloc: dernière_version_stable_compatible
+  hive: dernière_version_stable_compatible
 
   # LLM & Speech
-  speech_to_text: dernière_version_stable
-  flutter_tts: dernière_version_stable
-  permission_handler: dernière_version_stable
-  record: dernière_version_stable
-  just_audio: dernière_version_stable
-  path_provider: dernière_version_stable
+  speech_to_text: dernière_version_stable_compatible
+  flutter_tts: dernière_version_stable_compatible
+  permission_handler: dernière_version_stable_compatible
+  record: dernière_version_stable_compatible
+  just_audio: dernière_version_stable_compatible
+  path_provider: dernière_version_stable_compatible
 
   # HTTP & API
-  http: dernière_version_stable
-  dio: dernière_version_stable
+  http: dernière_version_stable_compatible
+  dio: dernière_version_stable_compatible
 
   # UI Components
-  lottie: dernière_version_stable
-  shimmer: dernière_version_stable
-  flutter_spinkit: dernière_version_stable
+  lottie: dernière_version_stable_compatible
+  shimmer: dernière_version_stable_compatible
+  flutter_spinkit: dernière_version_stable_compatible
 
 dev_dependencies:
   # Testing
-  bloc_test: dernière_version_stable
-  mocktail: dernière_version_stable
-  injectable_generator: dernière_version_stable
+  bloc_test: dernière_version_stable_compatible
+  mocktail: dernière_version_stable_compatible
+  injectable_generator: dernière_version_stable_compatible
 ```
 
 ## 📝 Documentation Complémentaire
