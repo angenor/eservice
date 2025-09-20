@@ -1,4 +1,7 @@
-- La base de donnée doit laisser des trace pour les audites futures, donc un utilisateur ne peut etre supprimé définitivement, les tables pertinentes non plus. Il faut juste ajouter des propriété qui permettent de savoir si l'élément est supprimé ou pas et tenir compte lors des requette(affichage, modification etc...).
-- Néanmoins, dans des cas très spécifique, le super_admin seule peu éffectuer des suppressions définitives
-- dans "providers" , il faut une propriété qui permet d'indiquer si un prestataires est trop occupé
-- je veux un champ de badjes pour les prestataires( bronze, silver, gold, platinum), nous allons le leur attribuer selon certaint critère que nous définirons ultérieurement
+## 🔮 Évolutions futures
+
+1. **Recherche sémantique** avec pgvector
+2. **Recommandations personnalisées** via ML
+3. **Détection d'anomalies** dans les commandes
+4. **Support multimodal** (images de produits)
+5. **Traduction automatique** pour support multilingue

@@ -699,3 +699,330 @@ SELECT cron.schedule(
     END $$;
     $$
 );
+
+-- ============================================
+-- FONCTIONS POUR INTÉGRATION LLM
+-- ============================================
+
+-- Fonction pour formater les prix en langage naturel
+CREATE OR REPLACE FUNCTION format_price_natural(amount DECIMAL, lang VARCHAR DEFAULT 'fr')
+RETURNS TEXT AS $$
+BEGIN
+    IF lang = 'fr' THEN
+        RETURN amount::text || ' francs CFA';
+    ELSE
+        RETURN amount::text || ' FCFA';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction pour obtenir le contexte d'un utilisateur pour le LLM
+CREATE OR REPLACE FUNCTION get_user_context(p_user_id UUID)
+RETURNS JSONB AS $$
+DECLARE
+    v_context JSONB;
+BEGIN
+    SELECT jsonb_build_object(
+        'user_name', u.full_name,
+        'phone', u.phone_number,
+        'language', u.language,
+        'is_active', u.is_active,
+        'last_order', (
+            SELECT jsonb_build_object(
+                'order_number', o.order_number,
+                'provider', p.business_name,
+                'date', o.created_at,
+                'status', o.status,
+                'total', o.total_amount,
+                'items', (
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'product', oi.product_name,
+                            'quantity', oi.quantity,
+                            'price', oi.unit_price
+                        )
+                    )
+                    FROM order_items oi
+                    WHERE oi.order_id = o.id
+                )
+            )
+            FROM orders o
+            LEFT JOIN providers p ON o.provider_id = p.id
+            WHERE o.user_id = p_user_id
+            ORDER BY o.created_at DESC
+            LIMIT 1
+        ),
+        'favorite_providers', (
+            SELECT jsonb_agg(
+                jsonb_build_object(
+                    'name', p.business_name,
+                    'neighborhood', p.neighborhood,
+                    'order_count', p.order_count
+                )
+            )
+            FROM (
+                SELECT pr.business_name, pr.neighborhood, COUNT(*) as order_count
+                FROM orders o
+                JOIN providers pr ON o.provider_id = pr.id
+                WHERE o.user_id = p_user_id
+                    AND o.status = 'delivered'
+                GROUP BY pr.id, pr.business_name, pr.neighborhood
+                ORDER BY order_count DESC
+                LIMIT 3
+            ) p
+        ),
+        'default_address', (
+            SELECT jsonb_build_object(
+                'id', a.id,
+                'name', a.name,
+                'street', a.street_address,
+                'neighborhood', a.neighborhood,
+                'landmarks', a.local_landmarks
+            )
+            FROM addresses a
+            WHERE a.user_id = p_user_id
+                AND a.is_default = true
+                AND a.deleted_at IS NULL
+            LIMIT 1
+        ),
+        'wallet_balance', (
+            SELECT balance FROM wallets WHERE user_id = p_user_id
+        ),
+        'active_shortcuts', (
+            SELECT jsonb_agg(
+                jsonb_build_object(
+                    'name', shortcut_name,
+                    'triggers', trigger_phrases
+                )
+            )
+            FROM voice_order_shortcuts
+            WHERE user_id = p_user_id
+                AND is_active = true
+        )
+    ) INTO v_context
+    FROM users u
+    WHERE u.id = p_user_id;
+
+    RETURN v_context;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction pour formater un statut de commande en langage naturel
+CREATE OR REPLACE FUNCTION format_order_status(
+    p_status order_status,
+    p_lang VARCHAR DEFAULT 'fr'
+) RETURNS TEXT AS $$
+BEGIN
+    IF p_lang = 'fr' THEN
+        RETURN CASE p_status
+            WHEN 'pending' THEN 'en attente de confirmation'
+            WHEN 'confirmed' THEN 'confirmée'
+            WHEN 'preparing' THEN 'en préparation'
+            WHEN 'ready' THEN 'prête à être livrée'
+            WHEN 'in_delivery' THEN 'en cours de livraison'
+            WHEN 'delivered' THEN 'livrée'
+            WHEN 'cancelled' THEN 'annulée'
+            WHEN 'refunded' THEN 'remboursée'
+            ELSE p_status::text
+        END;
+    ELSE
+        RETURN p_status::text;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction pour rechercher des produits pour le LLM
+CREATE OR REPLACE FUNCTION search_products_for_llm(
+    p_query TEXT,
+    p_provider_id UUID DEFAULT NULL,
+    p_category VARCHAR DEFAULT NULL,
+    p_limit INTEGER DEFAULT 10
+) RETURNS TABLE (
+    product_id UUID,
+    product_name VARCHAR,
+    description TEXT,
+    price DECIMAL,
+    provider_name VARCHAR,
+    provider_neighborhood VARCHAR,
+    is_available BOOLEAN,
+    formatted_description TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        p.id,
+        p.name,
+        p.description,
+        p.base_price,
+        pr.business_name,
+        pr.neighborhood,
+        p.is_available,
+        CONCAT(
+            p.name, ' - ',
+            format_price_natural(p.base_price),
+            ' chez ', pr.business_name,
+            ' (', pr.neighborhood, ')'
+        ) as formatted_description
+    FROM products p
+    JOIN providers pr ON p.provider_id = pr.id
+    LEFT JOIN dish_categories dc ON p.category_id = dc.id
+    WHERE p.is_available = true
+        AND pr.is_active = true
+        AND pr.is_verified = true
+        AND p.deleted_at IS NULL
+        AND pr.deleted_at IS NULL
+        AND (p_provider_id IS NULL OR pr.id = p_provider_id)
+        AND (p_category IS NULL OR dc.name ILIKE '%' || p_category || '%')
+        AND (p_query IS NULL OR
+            p.name ILIKE '%' || p_query || '%' OR
+            p.description ILIKE '%' || p_query || '%')
+    ORDER BY
+        pr.is_busy ASC,
+        pr.rating DESC,
+        p.base_price ASC
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger pour mettre à jour le contexte de conversation LLM
+CREATE OR REPLACE FUNCTION update_conversation_context()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Mettre à jour le compteur de messages
+    UPDATE llm_conversations
+    SET message_count = message_count + 1
+    WHERE id = NEW.conversation_id;
+
+    -- Si c'est un message utilisateur avec une intention
+    IF NEW.role = 'user' AND NEW.detected_intent IS NOT NULL THEN
+        UPDATE llm_conversations
+        SET current_intent = NEW.detected_intent,
+            confidence_score = NEW.confidence_score,
+            context = jsonb_set(
+                COALESCE(context, '{}'::jsonb),
+                '{last_intent}',
+                to_jsonb(NEW.detected_intent::text)
+            )
+        WHERE id = NEW.conversation_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_update_conversation_context
+AFTER INSERT ON llm_messages
+FOR EACH ROW
+EXECUTE FUNCTION update_conversation_context();
+
+-- Fonction pour obtenir les produits fréquemment commandés
+CREATE OR REPLACE FUNCTION get_frequent_products(
+    p_user_id UUID,
+    p_limit INTEGER DEFAULT 5
+) RETURNS TABLE (
+    product_id UUID,
+    product_name VARCHAR,
+    provider_name VARCHAR,
+    order_count BIGINT,
+    last_ordered TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        p.id,
+        p.name,
+        pr.business_name,
+        COUNT(oi.id) as order_count,
+        MAX(o.created_at) as last_ordered
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    JOIN products p ON oi.product_id = p.id
+    JOIN providers pr ON p.provider_id = pr.id
+    WHERE o.user_id = p_user_id
+        AND o.status = 'delivered'
+    GROUP BY p.id, p.name, pr.business_name
+    ORDER BY order_count DESC, last_ordered DESC
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction pour valider une intention de commande
+CREATE OR REPLACE FUNCTION validate_order_intent(
+    p_user_id UUID,
+    p_entities JSONB
+) RETURNS JSONB AS $$
+DECLARE
+    v_result JSONB;
+    v_errors TEXT[] := ARRAY[]::TEXT[];
+    v_product_exists BOOLEAN;
+    v_provider_active BOOLEAN;
+    v_user_active BOOLEAN;
+BEGIN
+    -- Vérifier si l'utilisateur est actif
+    SELECT is_active INTO v_user_active
+    FROM users
+    WHERE id = p_user_id;
+
+    IF NOT v_user_active THEN
+        v_errors := array_append(v_errors, 'Votre compte est suspendu');
+    END IF;
+
+    -- Vérifier le produit si fourni
+    IF p_entities->>'product_id' IS NOT NULL THEN
+        SELECT EXISTS(
+            SELECT 1 FROM products p
+            JOIN providers pr ON p.provider_id = pr.id
+            WHERE p.id = (p_entities->>'product_id')::UUID
+                AND p.is_available = true
+                AND pr.is_active = true
+                AND pr.is_verified = true
+        ) INTO v_product_exists;
+
+        IF NOT v_product_exists THEN
+            v_errors := array_append(v_errors, 'Produit non disponible');
+        END IF;
+    END IF;
+
+    -- Construire le résultat
+    v_result := jsonb_build_object(
+        'valid', array_length(v_errors, 1) IS NULL,
+        'errors', v_errors,
+        'entities', p_entities
+    );
+
+    RETURN v_result;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction pour créer automatiquement des templates de base
+CREATE OR REPLACE FUNCTION initialize_llm_templates()
+RETURNS void AS $$
+BEGIN
+    -- Templates français pour les intentions principales
+    INSERT INTO llm_response_templates (intent, language, template_text, template_voice, variables)
+    VALUES
+    ('order_create', 'fr',
+     'J''ai préparé votre commande de {{product_name}} pour {{total_amount}}. Souhaitez-vous confirmer ?',
+     'Commande de {{product_name}}, total {{total_amount}}. Confirmer ?',
+     ARRAY['product_name', 'total_amount']),
+
+    ('order_track', 'fr',
+     'Votre commande {{order_number}} est {{status}}. {{delivery_estimate}}',
+     'Commande {{order_number}}, {{status}}. {{delivery_estimate}}',
+     ARRAY['order_number', 'status', 'delivery_estimate']),
+
+    ('greeting', 'fr',
+     'Bonjour {{user_name}} ! Comment puis-je vous aider aujourd''hui ?',
+     'Bonjour {{user_name}} ! Que puis-je pour vous ?',
+     ARRAY['user_name']),
+
+    ('help_request', 'fr',
+     'Je peux vous aider à : passer une commande, suivre votre livraison, ou répondre à vos questions. Que souhaitez-vous faire ?',
+     'Commande, suivi, ou questions. Que voulez-vous ?',
+     ARRAY[])
+    ON CONFLICT DO NOTHING;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Exécuter l'initialisation des templates
+SELECT initialize_llm_templates();

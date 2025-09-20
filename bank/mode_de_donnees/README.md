@@ -8,6 +8,7 @@ Ce modèle de données a été conçu pour supporter une plateforme multi-servic
 - ⛽ Service de recharge de gaz
 - 🛒 Boutique/Supermarché en ligne
 - 🔧 Quincaillerie
+- 🤖 **Support LLM intégré** (commandes vocales et chat)
 - 🔮 Futurs services à venir
 
 ## 🏗️ Architecture
@@ -18,6 +19,7 @@ Ce modèle de données a été conçu pour supporter une plateforme multi-servic
 2. **Performance** : Index optimisés pour les requêtes géospatiales et temporelles
 3. **Sécurité** : Row Level Security (RLS) pour protéger les données
 4. **Flexibilité** : Utilisation de JSONB pour les métadonnées extensibles
+5. **Intelligence Artificielle** : Intégration native LLM pour support vocal et conversationnel
 
 ## 📁 Structure des fichiers
 
@@ -60,6 +62,7 @@ Ce modèle de données a été conçu pour supporter une plateforme multi-servic
 | Restaurant | `products`, `dish_categories`, `product_variants` | Menu, plats, personnalisation |
 | Livraison | `drivers`, `driver_service_zones` | Livreurs, zones de service |
 | Gaz | `gas_bottle_types`, `gas_provider_stock` | Types de bouteilles, stock |
+| **LLM/IA** | `llm_conversations`, `llm_messages`, `voice_order_shortcuts` | Support vocal, chat intelligent |
 
 ## 🔒 Sécurité
 
@@ -81,6 +84,49 @@ CREATE TYPE user_role AS ENUM (
     'super_admin'  -- Super administrateur
 );
 ```
+
+## 🤖 Intégration LLM (Intelligence Artificielle)
+
+### Tables dédiées
+
+| Table | Description | Usage |
+|-------|-------------|-------|
+| `llm_conversations` | Sessions de conversation | Maintient le contexte des interactions |
+| `llm_messages` | Messages échangés | Stocke l'historique avec analyse NLP |
+| `llm_extracted_data` | Entités extraites | Données structurées depuis le langage naturel |
+| `llm_response_templates` | Templates de réponses | Génération cohérente des réponses |
+| `llm_faq` | FAQ intelligente | Réponses préenregistrées optimisées |
+| `voice_order_shortcuts` | Raccourcis vocaux | Commandes personnalisées par utilisateur |
+
+### Vues simplifiées pour LLM
+
+- **`llm_products_view`** : Produits avec descriptions en langage naturel
+- **`llm_orders_view`** : Commandes avec statuts textuels français
+- **`llm_providers_view`** : Prestataires avec horaires lisibles
+
+### Fonctions utilitaires LLM
+
+```sql
+-- Obtenir le contexte complet d'un utilisateur
+SELECT get_user_context('user-uuid');
+
+-- Formater un prix en langage naturel
+SELECT format_price_natural(1500, 'fr'); -- "1500 francs CFA"
+
+-- Rechercher des produits pour le LLM
+SELECT * FROM search_products_for_llm('pizza', NULL, NULL, 5);
+
+-- Valider une intention de commande
+SELECT validate_order_intent('user-uuid', '{"product_id": "..."}');
+```
+
+### Cas d'usage supportés
+
+1. **Commandes vocales** : "Je veux commander 2 pizzas chez Pizza Palace"
+2. **Suivi en temps réel** : "Où est ma commande ?"
+3. **Support client** : Résolution automatique des problèmes courants
+4. **Raccourcis personnalisés** : "Ma commande habituelle"
+5. **Recherche intelligente** : Compréhension du contexte et des préférences
 
 ## 🚀 Fonctionnalités clés
 
@@ -125,6 +171,7 @@ SELECT * FROM search_nearby_providers(
 - **Temporels** : Pour les requêtes par date
 - **Recherche** : Sur les noms et identifiants
 - **Performance** : Sur les clés étrangères fréquentes
+- **LLM** : Index spécifiques pour conversations et intentions
 
 ### Vues matérialisées
 
@@ -191,14 +238,16 @@ DATABASE_URL=postgresql://user:password@host:port/database
 ## 🔮 Évolutions futures
 
 ### Phase 1 (3 mois)
-- [ ] Commande vocale en langues locales
+- [x] ~~Commande vocale en langues locales~~ ✅ Déjà intégré
 - [ ] Paiement par QR code
 - [ ] Mode famille (comptes liés)
+- [ ] Recherche sémantique avec pgvector
 
 ### Phase 2 (6 mois)
 - [ ] Abonnements mensuels
-- [ ] Recommandations IA
+- [x] ~~Recommandations IA~~ ✅ Base déjà intégrée
 - [ ] Gamification avancée
+- [ ] Support multimodal (images de produits)
 
 ### Phase 3 (12 mois)
 - [ ] Social shopping (commandes groupées)

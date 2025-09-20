@@ -719,3 +719,316 @@ COMMENT ON TABLE support_tickets IS 'Système de support client intégré';
 COMMENT ON COLUMN orders.confirmation_code IS 'Code de confirmation à 2 caractères (ex: A9, B2)';
 COMMENT ON COLUMN users.suspension_count IS 'Nombre de suspensions temporaires';
 COMMENT ON COLUMN users.max_cancellations IS 'Nombre maximum d''annulations autorisées';
+
+-- ============================================
+-- INTÉGRATION LLM - SUPPORT VOCAL ET CHAT
+-- ============================================
+-- Tables optimisées pour l'intégration avec les LLMs
+-- Support des commandes vocales et du chat de support
+
+-- Types d'interactions LLM
+CREATE TYPE llm_interaction_type AS ENUM (
+    'voice_order',        -- Commande vocale
+    'chat_support',       -- Support par chat
+    'voice_support',      -- Support vocal
+    'order_tracking',     -- Suivi de commande
+    'product_inquiry',    -- Question sur produit
+    'complaint',          -- Réclamation
+    'general_inquiry'     -- Question générale
+);
+
+-- Statuts des sessions de conversation
+CREATE TYPE conversation_status AS ENUM (
+    'active',
+    'paused',
+    'completed',
+    'abandoned',
+    'transferred'  -- Transféré à un agent humain
+);
+
+-- Types d'intentions détectées
+CREATE TYPE intent_type AS ENUM (
+    'order_create',
+    'order_modify',
+    'order_cancel',
+    'order_track',
+    'product_search',
+    'price_inquiry',
+    'availability_check',
+    'complaint_file',
+    'help_request',
+    'greeting',
+    'goodbye'
+);
+
+-- ============================================
+-- TABLE: Sessions de conversation LLM
+-- ============================================
+CREATE TABLE llm_conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id),
+    interaction_type llm_interaction_type NOT NULL,
+    status conversation_status DEFAULT 'active',
+    channel VARCHAR(20) NOT NULL, -- 'voice', 'text', 'whatsapp'
+    language VARCHAR(10) DEFAULT 'fr',
+
+    -- Contexte de la conversation
+    context JSONB DEFAULT '{}'::jsonb,
+    current_intent intent_type,
+    confidence_score DECIMAL(3,2), -- Score de confiance 0-1
+
+    -- Données de session
+    session_duration INTEGER, -- en secondes
+    message_count INTEGER DEFAULT 0,
+
+    -- Résultats
+    order_id UUID REFERENCES orders(id),
+    ticket_id UUID REFERENCES support_tickets(id),
+    resolved BOOLEAN DEFAULT false,
+    resolution_summary TEXT,
+
+    -- Timestamps
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at TIMESTAMPTZ,
+
+    -- Métadonnées
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+-- ============================================
+-- TABLE: Messages de conversation
+-- ============================================
+CREATE TABLE llm_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id UUID REFERENCES llm_conversations(id) ON DELETE CASCADE,
+
+    -- Contenu
+    role VARCHAR(20) NOT NULL, -- 'user', 'assistant', 'system'
+    content TEXT NOT NULL,
+    audio_url TEXT, -- Pour les messages vocaux
+
+    -- Analyse NLP
+    detected_intent intent_type,
+    extracted_entities JSONB DEFAULT '{}'::jsonb,
+    sentiment VARCHAR(20), -- 'positive', 'negative', 'neutral'
+    confidence_score DECIMAL(3,2),
+
+    -- Timestamps
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- TABLE: Intentions et entités extraites
+-- ============================================
+CREATE TABLE llm_extracted_data (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    message_id UUID REFERENCES llm_messages(id) ON DELETE CASCADE,
+
+    -- Données extraites
+    entity_type VARCHAR(50) NOT NULL, -- 'product', 'quantity', 'address', 'time'
+    entity_value TEXT NOT NULL,
+    confidence DECIMAL(3,2),
+
+    -- Validation
+    is_validated BOOLEAN DEFAULT false,
+    validation_errors TEXT[],
+
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- TABLE: Templates de réponses
+-- ============================================
+CREATE TABLE llm_response_templates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    intent intent_type NOT NULL,
+    language VARCHAR(10) DEFAULT 'fr',
+
+    -- Templates
+    template_text TEXT NOT NULL,
+    template_voice TEXT, -- Version optimisée pour la synthèse vocale
+
+    -- Variables supportées
+    variables TEXT[], -- Ex: ['user_name', 'order_number', 'estimated_time']
+
+    -- Utilisation
+    usage_count INTEGER DEFAULT 0,
+    success_rate DECIMAL(3,2),
+
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- TABLE: FAQ et réponses préenregistrées
+-- ============================================
+CREATE TABLE llm_faq (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category VARCHAR(50) NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+
+    -- Optimisation recherche
+    keywords TEXT[],
+
+    -- Statistiques
+    view_count INTEGER DEFAULT 0,
+    helpful_count INTEGER DEFAULT 0,
+    not_helpful_count INTEGER DEFAULT 0,
+
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- TABLE: Commandes vocales simplifiées
+-- ============================================
+CREATE TABLE voice_order_shortcuts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id),
+
+    -- Raccourci
+    shortcut_name VARCHAR(100) NOT NULL, -- "Ma commande habituelle"
+    trigger_phrases TEXT[], -- ["commande habituelle", "comme d'habitude"]
+
+    -- Contenu de la commande
+    provider_id UUID REFERENCES providers(id),
+    items JSONB NOT NULL, -- Liste des produits et quantités
+    delivery_address_id UUID REFERENCES addresses(id),
+
+    -- Utilisation
+    usage_count INTEGER DEFAULT 0,
+    last_used_at TIMESTAMPTZ,
+
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(user_id, shortcut_name)
+);
+
+-- ============================================
+-- VUES SIMPLIFIÉES POUR LES LLMs
+-- ============================================
+
+-- Vue simple des produits pour requêtes LLM
+CREATE VIEW llm_products_view AS
+SELECT
+    p.id as product_id,
+    p.name as product_name,
+    p.description,
+    p.base_price as price,
+    p.is_available,
+    p.preparation_time,
+    pr.business_name as restaurant_name,
+    pr.neighborhood,
+    dc.name as category,
+    -- Texte formaté pour le LLM
+    CONCAT(
+        p.name, ' - ',
+        p.base_price::text, ' FCFA',
+        CASE WHEN p.is_available THEN ' (disponible)' ELSE ' (indisponible)' END,
+        ' chez ', pr.business_name,
+        ' à ', pr.neighborhood
+    ) as llm_description
+FROM products p
+JOIN providers pr ON p.provider_id = pr.id
+LEFT JOIN dish_categories dc ON p.category_id = dc.id
+WHERE pr.is_active = true AND pr.is_verified = true;
+
+-- Vue simple des commandes pour requêtes LLM
+CREATE VIEW llm_orders_view AS
+SELECT
+    o.id as order_id,
+    o.order_number,
+    o.status,
+    o.total_amount,
+    o.confirmation_code,
+    o.estimated_delivery_time,
+    u.full_name as customer_name,
+    u.phone_number as customer_phone,
+    pr.business_name as provider_name,
+    d.user_id as driver_user_id,
+    -- Texte formaté pour réponse vocale
+    CASE o.status
+        WHEN 'pending' THEN 'en attente de confirmation'
+        WHEN 'confirmed' THEN 'confirmée'
+        WHEN 'preparing' THEN 'en préparation'
+        WHEN 'ready' THEN 'prête'
+        WHEN 'in_delivery' THEN 'en cours de livraison'
+        WHEN 'delivered' THEN 'livrée'
+        WHEN 'cancelled' THEN 'annulée'
+    END as status_text_fr,
+    -- Estimation en langage naturel
+    CASE
+        WHEN o.estimated_delivery_time IS NOT NULL THEN
+            'Livraison prévue dans ' ||
+            EXTRACT(MINUTE FROM (o.estimated_delivery_time - NOW()))::text ||
+            ' minutes'
+        ELSE 'Temps de livraison en cours de calcul'
+    END as delivery_estimate_text
+FROM orders o
+JOIN users u ON o.user_id = u.id
+LEFT JOIN providers pr ON o.provider_id = pr.id
+LEFT JOIN drivers d ON o.driver_id = d.id;
+
+-- Vue des prestataires avec infos simplifiées pour LLM
+CREATE VIEW llm_providers_view AS
+SELECT
+    p.id as provider_id,
+    p.business_name,
+    p.description,
+    p.neighborhood,
+    p.rating,
+    p.is_busy,
+    s.name as service_type,
+    -- Horaires du jour
+    ps.opening_time,
+    ps.closing_time,
+    ps.is_closed as closed_today,
+    -- Statut en langage naturel
+    CASE
+        WHEN ps.is_closed THEN p.business_name || ' est fermé aujourd''hui'
+        WHEN p.is_busy THEN p.business_name || ' est actuellement très occupé'
+        WHEN CURRENT_TIME BETWEEN ps.opening_time AND ps.closing_time THEN
+            p.business_name || ' est ouvert jusqu''à ' || ps.closing_time::text
+        ELSE p.business_name || ' est fermé'
+    END as status_text
+FROM providers p
+JOIN services s ON p.service_id = s.id
+LEFT JOIN provider_schedules ps ON p.id = ps.provider_id
+    AND ps.day_of_week = EXTRACT(DOW FROM CURRENT_DATE)
+WHERE p.is_active = true AND p.is_verified = true;
+
+-- ============================================
+-- INDEX POUR PERFORMANCE LLM
+-- ============================================
+
+-- Index pour recherche rapide des conversations
+CREATE INDEX idx_llm_conversations_user ON llm_conversations(user_id);
+CREATE INDEX idx_llm_conversations_status ON llm_conversations(status);
+CREATE INDEX idx_llm_conversations_date ON llm_conversations(started_at DESC);
+
+-- Index pour messages
+CREATE INDEX idx_llm_messages_conversation ON llm_messages(conversation_id);
+CREATE INDEX idx_llm_messages_intent ON llm_messages(detected_intent);
+
+-- Index pour templates
+CREATE INDEX idx_llm_templates_intent ON llm_response_templates(intent, language);
+
+-- Index pour FAQ
+CREATE INDEX idx_llm_faq_category ON llm_faq(category);
+CREATE INDEX idx_llm_faq_keywords ON llm_faq USING GIN(keywords);
+
+-- ============================================
+-- COMMENTAIRES SUR LES NOUVELLES TABLES LLM
+-- ============================================
+
+COMMENT ON TABLE llm_conversations IS 'Sessions de conversation avec les LLMs pour support et commandes vocales';
+COMMENT ON TABLE llm_messages IS 'Messages échangés durant les conversations LLM';
+COMMENT ON TABLE llm_response_templates IS 'Templates de réponses pour génération cohérente';
+COMMENT ON TABLE voice_order_shortcuts IS 'Raccourcis vocaux personnalisés par utilisateur';
+COMMENT ON VIEW llm_products_view IS 'Vue simplifiée des produits optimisée pour requêtes LLM';
+COMMENT ON VIEW llm_orders_view IS 'Vue simplifiée des commandes avec texte en langage naturel';
+COMMENT ON VIEW llm_providers_view IS 'Vue des prestataires avec statut en langage naturel';
