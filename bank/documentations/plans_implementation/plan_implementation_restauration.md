@@ -9,7 +9,7 @@
 Implémenter un module complet de commande de repas en ligne permettant aux utilisateurs de découvrir des restaurants, commander des plats personnalisés, suivre leur livraison en temps réel et gérer leurs paiements.
 
 ### Durée estimée
-**8-10 semaines** pour une implémentation complète avec tests
+**10-12 semaines** pour une implémentation complète avec tests et fonctionnalités LLM avancées
 
 ### Stack Technique
 - **Frontend**: Flutter 3.x
@@ -19,6 +19,8 @@ Implémenter un module complet de commande de repas en ligne permettant aux util
 - **Dependency Injection**: get_it + injectable
 - **Maps**: Google Maps / OpenStreetMap
 - **Paiements**: Mobile Money APIs (Orange, MTN, Moov)
+- **IA/LLM**: Support vocal intégré, chat intelligent, commandes naturelles
+- **Speech**: speech_to_text, flutter_tts pour les interactions vocales
 
 ---
 
@@ -45,6 +47,44 @@ lib/
 │       └── error_widget.dart
 │
 ├── features/
+│   ├── llm/
+│   │   ├── data/
+│   │   │   ├── datasources/
+│   │   │   │   ├── llm_remote_datasource.dart
+│   │   │   │   └── speech_datasource.dart
+│   │   │   ├── models/
+│   │   │   │   ├── llm_conversation_model.dart
+│   │   │   │   ├── llm_message_model.dart
+│   │   │   │   ├── voice_shortcut_model.dart
+│   │   │   │   └── extracted_data_model.dart
+│   │   │   └── repositories/
+│   │   │       └── llm_repository_impl.dart
+│   │   ├── domain/
+│   │   │   ├── entities/
+│   │   │   │   ├── conversation.dart
+│   │   │   │   ├── llm_message.dart
+│   │   │   │   └── voice_shortcut.dart
+│   │   │   ├── repositories/
+│   │   │   │   └── llm_repository.dart
+│   │   │   └── usecases/
+│   │   │       ├── process_voice_command.dart
+│   │   │       ├── get_chat_response.dart
+│   │   │       ├── create_voice_shortcut.dart
+│   │   │       └── extract_order_intent.dart
+│   │   └── presentation/
+│   │       ├── blocs/
+│   │       │   ├── voice_command/
+│   │       │   ├── chat/
+│   │       │   └── voice_shortcuts/
+│   │       ├── pages/
+│   │       │   ├── chat_page.dart
+│   │       │   ├── voice_shortcuts_page.dart
+│   │       │   └── voice_command_overlay.dart
+│   │       └── widgets/
+│   │           ├── voice_input_button.dart
+│   │           ├── chat_bubble.dart
+│   │           └── voice_wave_animation.dart
+│   │
 │   └── restaurant/
 │       ├── data/
 │       │   ├── datasources/
@@ -108,7 +148,9 @@ lib/
 │               ├── dish_card.dart
 │               ├── cart_item_widget.dart
 │               ├── customization_dialog.dart
-│               └── order_timeline_widget.dart
+│               ├── order_timeline_widget.dart
+│               ├── voice_search_bar.dart
+│               └── smart_recommendation_widget.dart
 │
 └── main.dart
 ```
@@ -181,6 +223,84 @@ class Order {
 }
 ```
 
+### 4. LLM Conversation Entity
+```dart
+class LLMConversation {
+  final String id;
+  final String userId;
+  final ConversationType type; // voice, chat, shortcut
+  final String? title;
+  final Map<String, dynamic> context;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isActive;
+  final List<LLMMessage> messages;
+}
+```
+
+### 5. LLM Message Entity
+```dart
+class LLMMessage {
+  final String id;
+  final String conversationId;
+  final MessageRole role; // user, assistant, system
+  final String content;
+  final MessageType type; // text, voice, order_intent
+  final Map<String, dynamic>? metadata;
+  final DateTime timestamp;
+  final ExtractedData? extractedData;
+}
+```
+
+### 6. Voice Shortcut Entity
+```dart
+class VoiceShortcut {
+  final String id;
+  final String userId;
+  final String name;
+  final String phrase;
+  final Map<String, dynamic> orderData;
+  final bool isActive;
+  final DateTime createdAt;
+  final int usageCount;
+}
+```
+
+### 7. Extracted Data Entity
+```dart
+class ExtractedData {
+  final String id;
+  final String messageId;
+  final DataType type; // product, quantity, restaurant, address
+  final String value;
+  final double confidence;
+  final Map<String, dynamic>? additionalInfo;
+}
+```
+
+---
+
+## 🤖 Fonctionnalités LLM Intégrées
+
+### Commandes Vocales Supportées
+- **Commande directe**: "Je veux commander 2 pizzas chez Pizza Palace"
+- **Recherche**: "Trouve-moi des restaurants de sushi près de moi"
+- **Suivi**: "Où est ma commande ?"
+- **Raccourci**: "Ma commande habituelle"
+- **Navigation**: "Ouvre mon panier"
+
+### Chat Intelligent
+- Support client automatique avec FAQ intégrée
+- Recommandations personnalisées
+- Assistance pour navigation et commande
+- Compréhension du contexte utilisateur
+
+### Reconnaissance Vocale
+- Support multilingue (Français, langues locales)
+- Traitement en temps réel
+- Correction d'erreurs intelligente
+- Apprentissage des habitudes utilisateur
+
 ---
 
 ## 🎨 Écrans Principaux
@@ -190,11 +310,15 @@ class Order {
 #### 1. Écran d'Accueil
 - **Composants**:
   - Bannière promotionnelle (carousel)
-  - Barre de recherche avec recherche vocale
+  - **Barre de recherche intelligente** avec recherche vocale et suggestions LLM
+  - **Bouton d'assistant vocal** (FAB) pour commandes directes
+  - **Zone de raccourcis vocaux** ("Ma commande habituelle", "Recommandations")
   - Catégories de cuisine (chips horizontaux)
   - Section "Près de vous" avec géolocalisation
+  - **Section "Recommandés pour vous"** alimentée par LLM
   - Section "Populaires cette semaine"
-  - Bottom navigation bar
+  - **Chat support** accessible via icône
+  - Bottom navigation bar avec badge pour notifications LLM
 
 - **Implémentation**:
 ```dart
@@ -210,6 +334,16 @@ class HomePage extends StatelessWidget {
         BlocProvider(
           create: (context) => getIt<LocationBloc>()
             ..add(GetCurrentLocation()),
+        ),
+        BlocProvider(
+          create: (context) => getIt<VoiceCommandBloc>(),
+        ),
+        BlocProvider(
+          create: (context) => getIt<ChatBloc>(),
+        ),
+        BlocProvider(
+          create: (context) => getIt<VoiceShortcutsBloc>()
+            ..add(LoadUserShortcuts()),
         ),
       ],
       child: Scaffold(
@@ -326,6 +460,44 @@ class HomePage extends StatelessWidget {
   - Commentaire optionnel
   - Pourboire livreur
 
+### Phase 4: Fonctionnalités LLM Avancées (Semaines 8-10)
+
+#### 10. Assistant Vocal Intelligent
+- **Composants**:
+  - Interface de commande vocale avec animation d'onde
+  - Feedback en temps réel de la reconnaissance vocale
+  - Support multilingue (Français, langues locales)
+  - Bouton PTT (Push-to-Talk) avec indicateur d'état
+  - Historique des commandes vocales
+  - Correction d'erreurs interactive
+
+#### 11. Chat Support IA
+- **Features**:
+  - Interface de chat avec bulles de conversation
+  - Suggestions de réponses rapides
+  - FAQ intelligente avec recherche sémantique
+  - Escalade vers support humain
+  - Sauvegarde des conversations
+  - Intégration avec le contexte de commande
+
+#### 12. Gestion des Raccourcis Vocaux
+- **Écran de configuration**:
+  - Liste des raccourcis existants
+  - Création/modification de raccourcis personnalisés
+  - Test et validation des phrases
+  - Statistiques d'utilisation
+  - Import/export de raccourcis
+  - Partage familial des raccourcis populaires
+
+#### 13. Recommandations Intelligentes
+- **Intégration LLM**:
+  - Widget de suggestions personnalisées
+  - Analyse des préférences utilisateur
+  - Recommandations contextuelles (météo, heure, jour)
+  - Suggestions de découverte ("Nouveau pour vous")
+  - Optimisation basée sur l'historique
+  - A/B testing des recommandations
+
 ---
 
 ## 🔌 Services & API
@@ -370,6 +542,56 @@ abstract class LocationService {
   Future<double> calculateDistance(Location from, Location to);
   Future<double> calculateDeliveryFee(Location from, Location to);
   Stream<Location> trackDriverLocation(String driverId);
+}
+```
+
+### 5. LLM Service
+```dart
+abstract class LLMService {
+  Future<String> processVoiceCommand(String audioData, String userId);
+  Future<ChatResponse> getChatResponse(String message, String conversationId);
+  Future<OrderIntent> extractOrderIntent(String naturalLanguage, String userId);
+  Future<List<Product>> searchProductsNaturally(String query, String? restaurantId);
+  Future<String> formatPriceNatural(double price, String language);
+  Future<UserContext> getUserContext(String userId);
+  Stream<String> transcribeAudioStream(Stream<List<int>> audioStream);
+}
+```
+
+### 6. Voice Service
+```dart
+abstract class VoiceService {
+  Future<bool> initialize();
+  Future<bool> startListening();
+  Future<void> stopListening();
+  Future<String> transcribeAudio(String audioPath);
+  Future<void> speakText(String text, String language);
+  Stream<String> getTranscriptionStream();
+  Future<void> setLanguage(String languageCode);
+}
+```
+
+### 7. Voice Shortcuts Service
+```dart
+abstract class VoiceShortcutsService {
+  Future<List<VoiceShortcut>> getUserShortcuts(String userId);
+  Future<VoiceShortcut> createShortcut(String userId, String phrase, Map<String, dynamic> orderData);
+  Future<void> updateShortcut(String shortcutId, Map<String, dynamic> updates);
+  Future<void> deleteShortcut(String shortcutId);
+  Future<VoiceShortcut?> matchShortcut(String phrase, String userId);
+  Future<void> incrementUsage(String shortcutId);
+}
+```
+
+### 8. Conversation Service
+```dart
+abstract class ConversationService {
+  Future<LLMConversation> createConversation(String userId, ConversationType type);
+  Future<LLMMessage> addMessage(String conversationId, MessageRole role, String content);
+  Future<LLMConversation> getConversation(String conversationId);
+  Future<List<LLMConversation>> getUserConversations(String userId);
+  Future<void> updateConversationContext(String conversationId, Map<String, dynamic> context);
+  Stream<LLMMessage> subscribeToMessages(String conversationId);
 }
 ```
 
@@ -1122,33 +1344,51 @@ void main() {
 ### Sprint 1 (Semaine 1-2): Foundation
 - [ ] Setup projet Flutter avec Clean Architecture + BLoC
 - [ ] Configuration Supabase et dependency injection
-- [ ] Modèles et entités
+- [ ] Modèles et entités (Restaurant, Order, **LLM**)
 - [ ] Services de base et repositories
-- [ ] BLoCs principaux (Authentication, Location)
-- [ ] Écran d'accueil avec BlocProvider
+- [ ] BLoCs principaux (Authentication, Location, **VoiceCommand**)
+- [ ] Écran d'accueil avec BlocProvider et **composants LLM de base**
+- [ ] **Configuration Speech-to-Text et TTS**
+- [ ] **Setup des tables LLM dans Supabase**
 
 ### Sprint 2 (Semaine 3-4): Discovery
 - [ ] Liste restaurants
 - [ ] Page détail restaurant
-- [ ] Système de recherche/filtres
+- [ ] **Système de recherche intelligente avec LLM**
+- [ ] **Recherche vocale intégrée**
 - [ ] Géolocalisation
+- [ ] **Recommandations LLM de base**
 
 ### Sprint 3 (Semaine 5-6): Ordering
 - [ ] Personnalisation de plats
+- [ ] **Commandes vocales simples ("Ajouter au panier")**
 - [ ] Gestion du panier
 - [ ] Processus de checkout
 - [ ] Intégration paiements
+- [ ] **Validation d'intention de commande LLM**
 
 ### Sprint 4 (Semaine 7-8): Tracking
 - [ ] Tracking temps réel
+- [ ] **Suivi de commande via commandes vocales**
 - [ ] Notifications push
+- [ ] **Chat support IA de base**
 - [ ] Chat/Appel intégré
 - [ ] Système d'évaluation
 
-### Sprint 5 (Semaine 9-10): Polish
-- [ ] Tests unitaires et d'intégration
+### Sprint 5 (Semaine 9-10): LLM Avancé
+- [ ] **Assistant vocal intelligent complet**
+- [ ] **Gestion des raccourcis vocaux**
+- [ ] **Chat support IA avancé avec FAQ**
+- [ ] **Recommandations personnalisées**
+- [ ] **Support multilingue pour commandes vocales**
+- [ ] **Apprentissage des préférences utilisateur**
+
+### Sprint 6 (Semaine 11-12): Polish & Déploiement
+- [ ] Tests unitaires et d'intégration (**incluant tests LLM**)
 - [ ] Optimisations performance
 - [ ] Mode offline
+- [ ] **Tests de précision des commandes vocales**
+- [ ] **Optimisation des réponses LLM**
 - [ ] Documentation
 - [ ] Déploiement beta
 
@@ -1197,6 +1437,23 @@ dependencies:
   # State Persistence
   hydrated_bloc: dernière_version_stable
   hive: dernière_version_stable
+
+  # LLM & Speech
+  speech_to_text: dernière_version_stable
+  flutter_tts: dernière_version_stable
+  permission_handler: dernière_version_stable
+  record: dernière_version_stable
+  just_audio: dernière_version_stable
+  path_provider: dernière_version_stable
+
+  # HTTP & API
+  http: dernière_version_stable
+  dio: dernière_version_stable
+
+  # UI Components
+  lottie: dernière_version_stable
+  shimmer: dernière_version_stable
+  flutter_spinkit: dernière_version_stable
 
 dev_dependencies:
   # Testing

@@ -53,7 +53,7 @@ The application follows standard Flutter project structure with:
 
 ## Database Architecture
 
-The project includes SQL schema definitions in `bank/mode_de_donnees/` suggesting a backend database integration, likely using Supabase or similar PostgreSQL-based service given the presence of policies.sql.
+The project includes SQL schema definitions in `bank/mode_de_donnees/` suggesting a backend database integration, likely using Supabase service given the presence of policies.sql.
 
 ## Flutter Configuration
 

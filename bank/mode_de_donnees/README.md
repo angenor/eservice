@@ -26,6 +26,8 @@ Ce modèle de données a été conçu pour supporter une plateforme multi-servic
 - `schema.sql` : Définition complète des tables, types et index
 - `functions.sql` : Fonctions utilitaires, triggers et jobs CRON
 - `policies.sql` : Politiques de sécurité Row Level (RLS)
+- `LLM_GUIDE.md` : Guide d'intégration et recommandations pour l'IA
+- `llm_integration_example.dart` : Exemple d'implémentation Flutter avec Supabase
 - `README.md` : Documentation du modèle (ce fichier)
 
 ## 🗄️ Tables principales
