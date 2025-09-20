@@ -202,6 +202,73 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================
+-- FONCTIONS DE SOFT DELETE
+-- ============================================
+
+-- Fonction générique pour soft delete
+CREATE OR REPLACE FUNCTION soft_delete(
+    p_table_name TEXT,
+    p_id UUID
+) RETURNS BOOLEAN AS $$
+BEGIN
+    EXECUTE format('
+        UPDATE %I
+        SET deleted_at = NOW()
+        WHERE id = $1 AND deleted_at IS NULL',
+        p_table_name
+    ) USING p_id;
+
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction de suppression définitive (super_admin uniquement)
+CREATE OR REPLACE FUNCTION hard_delete(
+    p_table_name TEXT,
+    p_id UUID,
+    p_user_id UUID
+) RETURNS BOOLEAN AS $$
+DECLARE
+    v_is_super_admin BOOLEAN;
+BEGIN
+    -- Vérifier si l'utilisateur est super_admin
+    SELECT role = 'super_admin'
+    INTO v_is_super_admin
+    FROM users
+    WHERE id = p_user_id;
+
+    IF NOT v_is_super_admin THEN
+        RAISE EXCEPTION 'Seul le super_admin peut effectuer une suppression définitive';
+    END IF;
+
+    EXECUTE format('
+        DELETE FROM %I
+        WHERE id = $1',
+        p_table_name
+    ) USING p_id;
+
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Fonction pour restaurer un enregistrement soft-deleted
+CREATE OR REPLACE FUNCTION restore_deleted(
+    p_table_name TEXT,
+    p_id UUID
+) RETURNS BOOLEAN AS $$
+BEGIN
+    EXECUTE format('
+        UPDATE %I
+        SET deleted_at = NULL
+        WHERE id = $1 AND deleted_at IS NOT NULL',
+        p_table_name
+    ) USING p_id;
+
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================
 -- FONCTIONS DE GESTION DES UTILISATEURS
 -- ============================================
 
@@ -372,12 +439,15 @@ CREATE OR REPLACE FUNCTION search_nearby_providers(
     p_lon FLOAT,
     p_radius FLOAT DEFAULT 5.0, -- km
     p_service_type service_type DEFAULT NULL,
-    p_limit INTEGER DEFAULT 20
+    p_limit INTEGER DEFAULT 20,
+    p_exclude_busy BOOLEAN DEFAULT false -- Option pour exclure les prestataires occupés
 ) RETURNS TABLE (
     id UUID,
     business_name VARCHAR,
     distance FLOAT,
     rating DECIMAL,
+    badge provider_badge,
+    is_busy BOOLEAN,
     delivery_fee DECIMAL,
     estimated_time INTEGER
 ) AS $$
@@ -391,6 +461,8 @@ BEGIN
             ST_MakePoint(p_lon, p_lat)::geography
         ) / 1000 AS distance,
         p.rating,
+        p.badge,
+        p.is_busy,
         calculate_delivery_fee(
             ST_Distance(
                 p.coordinates,
@@ -409,13 +481,24 @@ BEGIN
     JOIN services s ON p.service_id = s.id
     WHERE p.is_active = true
         AND p.is_verified = true
+        AND p.deleted_at IS NULL  -- Exclure les prestataires supprimés
+        AND s.deleted_at IS NULL  -- Exclure les services supprimés
+        AND (NOT p_exclude_busy OR p.is_busy = false)  -- Optionnellement exclure les occupés
         AND (p_service_type IS NULL OR s.type = p_service_type)
         AND ST_DWithin(
             p.coordinates,
             ST_MakePoint(p_lon, p_lat)::geography,
             p_radius * 1000
         )
-    ORDER BY distance ASC
+    ORDER BY
+        p.is_busy ASC,  -- Afficher les disponibles en premier
+        CASE p.badge  -- Trier par badge
+            WHEN 'platinum' THEN 1
+            WHEN 'gold' THEN 2
+            WHEN 'silver' THEN 3
+            WHEN 'bronze' THEN 4
+        END,
+        distance ASC
     LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql;
@@ -451,6 +534,7 @@ BEGIN
     WHERE d.is_active = true
         AND d.is_verified = true
         AND d.is_available = true
+        AND d.deleted_at IS NULL  -- Exclure les livreurs supprimés
         AND (p_vehicle_type IS NULL OR d.vehicle_type = p_vehicle_type)
         AND d.current_location IS NOT NULL
         AND ST_DWithin(
@@ -516,6 +600,63 @@ CREATE TRIGGER check_cancellation_limit_trigger AFTER UPDATE ON orders
     EXECUTE FUNCTION check_cancellation_limit();
 
 -- ============================================
+-- FONCTIONS DE GESTION DES BADGES
+-- ============================================
+
+-- Fonction pour mettre à jour le badge d'un prestataire
+CREATE OR REPLACE FUNCTION update_provider_badge(
+    p_provider_id UUID
+) RETURNS provider_badge AS $$
+DECLARE
+    v_rating DECIMAL;
+    v_total_reviews INTEGER;
+    v_total_orders INTEGER;
+    v_acceptance_rate DECIMAL;
+    v_new_badge provider_badge;
+BEGIN
+    -- Récupérer les statistiques du prestataire
+    SELECT
+        rating,
+        total_reviews,
+        acceptance_rate
+    INTO
+        v_rating,
+        v_total_reviews,
+        v_acceptance_rate
+    FROM providers
+    WHERE id = p_provider_id;
+
+    -- Compter le nombre total de commandes
+    SELECT COUNT(*)
+    INTO v_total_orders
+    FROM orders
+    WHERE provider_id = p_provider_id
+        AND status = 'delivered'
+        AND deleted_at IS NULL;
+
+    -- Déterminer le badge selon les critères
+    -- Ces critères peuvent être ajustés ultérieurement
+    CASE
+        WHEN v_rating >= 4.8 AND v_total_orders >= 1000 AND v_acceptance_rate >= 95 THEN
+            v_new_badge := 'platinum';
+        WHEN v_rating >= 4.5 AND v_total_orders >= 500 AND v_acceptance_rate >= 90 THEN
+            v_new_badge := 'gold';
+        WHEN v_rating >= 4.0 AND v_total_orders >= 100 AND v_acceptance_rate >= 85 THEN
+            v_new_badge := 'silver';
+        ELSE
+            v_new_badge := 'bronze';
+    END CASE;
+
+    -- Mettre à jour le badge
+    UPDATE providers
+    SET badge = v_new_badge
+    WHERE id = p_provider_id;
+
+    RETURN v_new_badge;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================
 -- JOBS CRON (à configurer avec pg_cron)
 -- ============================================
 
@@ -538,4 +679,23 @@ SELECT cron.schedule(
     'expire-promo-codes',
     '0 0 * * *',
     'UPDATE promo_codes SET is_active = false WHERE valid_until < NOW() AND is_active = true;'
+);
+
+-- Job pour mettre à jour les badges des prestataires (tous les jours à 3h)
+SELECT cron.schedule(
+    'update-provider-badges',
+    '0 3 * * *',
+    $$
+    DO $$
+    DECLARE
+        v_provider RECORD;
+    BEGIN
+        FOR v_provider IN
+            SELECT id FROM providers
+            WHERE deleted_at IS NULL AND is_verified = true
+        LOOP
+            PERFORM update_provider_badge(v_provider.id);
+        END LOOP;
+    END $$;
+    $$
 );

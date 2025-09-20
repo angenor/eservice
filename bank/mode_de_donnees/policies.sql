@@ -25,12 +25,12 @@ ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
 -- Les utilisateurs peuvent voir leur propre profil
 CREATE POLICY "users_select_own" ON users
     FOR SELECT
-    USING (auth.uid() = id);
+    USING (auth.uid() = id AND deleted_at IS NULL);
 
 -- Les utilisateurs peuvent voir les profils publics des prestataires et livreurs
 CREATE POLICY "users_select_public_profiles" ON users
     FOR SELECT
-    USING (role IN ('provider', 'driver') AND is_active = true);
+    USING (role IN ('provider', 'driver') AND is_active = true AND deleted_at IS NULL);
 
 -- Les utilisateurs peuvent modifier leur propre profil
 CREATE POLICY "users_update_own" ON users
@@ -45,7 +45,7 @@ CREATE POLICY "users_update_own" ON users
 -- Les utilisateurs peuvent voir leurs propres adresses
 CREATE POLICY "addresses_select_own" ON addresses
     FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND deleted_at IS NULL);
 
 -- Les utilisateurs peuvent créer leurs propres adresses
 CREATE POLICY "addresses_insert_own" ON addresses
@@ -70,12 +70,12 @@ CREATE POLICY "addresses_delete_own" ON addresses
 -- Tout le monde peut voir les prestataires actifs et vérifiés
 CREATE POLICY "providers_select_active" ON providers
     FOR SELECT
-    USING (is_active = true AND is_verified = true);
+    USING (is_active = true AND is_verified = true AND deleted_at IS NULL);
 
 -- Les prestataires peuvent voir leur propre profil complet
 CREATE POLICY "providers_select_own" ON providers
     FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND deleted_at IS NULL);
 
 -- Les prestataires peuvent modifier leur propre profil
 CREATE POLICY "providers_update_own" ON providers
@@ -92,11 +92,13 @@ CREATE POLICY "products_select_available" ON products
     FOR SELECT
     USING (
         is_available = true AND
+        deleted_at IS NULL AND
         EXISTS (
             SELECT 1 FROM providers
             WHERE providers.id = products.provider_id
             AND providers.is_active = true
             AND providers.is_verified = true
+            AND providers.deleted_at IS NULL
         )
     );
 
@@ -104,10 +106,12 @@ CREATE POLICY "products_select_available" ON products
 CREATE POLICY "products_select_own_provider" ON products
     FOR SELECT
     USING (
+        deleted_at IS NULL AND
         EXISTS (
             SELECT 1 FROM providers
             WHERE providers.id = products.provider_id
             AND providers.user_id = auth.uid()
+            AND providers.deleted_at IS NULL
         )
     );
 
@@ -147,16 +151,18 @@ CREATE POLICY "products_update_provider" ON products
 -- Les utilisateurs peuvent voir leurs propres commandes
 CREATE POLICY "orders_select_own" ON orders
     FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND deleted_at IS NULL);
 
 -- Les prestataires peuvent voir les commandes qui leur sont assignées
 CREATE POLICY "orders_select_provider" ON orders
     FOR SELECT
     USING (
+        deleted_at IS NULL AND
         EXISTS (
             SELECT 1 FROM providers
             WHERE providers.id = orders.provider_id
             AND providers.user_id = auth.uid()
+            AND providers.deleted_at IS NULL
         )
     );
 
@@ -164,10 +170,12 @@ CREATE POLICY "orders_select_provider" ON orders
 CREATE POLICY "orders_select_driver" ON orders
     FOR SELECT
     USING (
+        deleted_at IS NULL AND
         EXISTS (
             SELECT 1 FROM drivers
             WHERE drivers.id = orders.driver_id
             AND drivers.user_id = auth.uid()
+            AND drivers.deleted_at IS NULL
         )
     );
 
@@ -355,12 +363,12 @@ CREATE POLICY "reviews_update_own_recent" ON provider_reviews
 -- Tout le monde peut voir les livreurs actifs et vérifiés
 CREATE POLICY "drivers_select_active" ON drivers
     FOR SELECT
-    USING (is_active = true AND is_verified = true);
+    USING (is_active = true AND is_verified = true AND deleted_at IS NULL);
 
 -- Les livreurs peuvent voir leur propre profil complet
 CREATE POLICY "drivers_select_own" ON drivers
     FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND deleted_at IS NULL);
 
 -- Les livreurs peuvent modifier leur propre profil
 CREATE POLICY "drivers_update_own" ON drivers
@@ -426,6 +434,51 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================
+-- POLICIES POUR LE SUPER_ADMIN
+-- ============================================
+
+-- Le super_admin peut voir tous les enregistrements (même supprimés)
+CREATE POLICY "super_admin_select_all_users" ON users
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE users.id = auth.uid()
+            AND users.role = 'super_admin'
+        )
+    );
+
+CREATE POLICY "super_admin_select_all_providers" ON providers
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE users.id = auth.uid()
+            AND users.role = 'super_admin'
+        )
+    );
+
+CREATE POLICY "super_admin_select_all_orders" ON orders
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE users.id = auth.uid()
+            AND users.role = 'super_admin'
+        )
+    );
+
+CREATE POLICY "super_admin_delete_all" ON users
+    FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE users.id = auth.uid()
+            AND users.role = 'super_admin'
+        )
+    );
 
 -- ============================================
 -- GRANT PERMISSIONS FOR AUTHENTICATED USERS

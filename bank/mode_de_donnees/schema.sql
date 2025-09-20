@@ -75,6 +75,14 @@ CREATE TYPE payment_status AS ENUM (
     'refunded'
 );
 
+-- Types de badges pour les prestataires
+CREATE TYPE provider_badge AS ENUM (
+    'bronze',
+    'silver',
+    'gold',
+    'platinum'
+);
+
 -- ============================================
 -- TABLES DE BASE
 -- ============================================
@@ -115,7 +123,8 @@ CREATE TABLE addresses (
     local_landmarks TEXT[], -- Repères locaux
     is_default BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ -- Soft delete
 );
 
 -- Table des services disponibles
@@ -130,6 +139,7 @@ CREATE TABLE services (
     commission_rate DECIMAL(5,2) DEFAULT 0.15, -- 10% par défaut
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ, -- Soft delete
     settings JSONB DEFAULT '{}'::jsonb
 );
 
@@ -149,12 +159,15 @@ CREATE TABLE providers (
     delivery_radius DECIMAL(5,2), -- en km
     is_verified BOOLEAN DEFAULT false,
     is_active BOOLEAN DEFAULT true,
+    is_busy BOOLEAN DEFAULT false, -- Indique si le prestataire est trop occupé
+    badge provider_badge DEFAULT 'bronze', -- Badge du prestataire
     rating DECIMAL(2,1) DEFAULT 0.0 CHECK (rating >= 0 AND rating <= 5),
     total_reviews INTEGER DEFAULT 0,
     acceptance_rate DECIMAL(5,2),
     average_response_time INTEGER, -- en secondes
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ, -- Soft delete
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
@@ -223,6 +236,7 @@ CREATE TABLE products (
     nutritional_info JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ, -- Soft delete
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
@@ -275,6 +289,7 @@ CREATE TABLE drivers (
     success_rate DECIMAL(5,2),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ, -- Soft delete
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
@@ -321,6 +336,7 @@ CREATE TABLE orders (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     cancelled_at TIMESTAMPTZ,
     cancellation_reason TEXT,
+    deleted_at TIMESTAMPTZ, -- Soft delete
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
@@ -659,7 +675,9 @@ FROM providers p
 JOIN services s ON p.service_id = s.id
 WHERE p.is_active = true
     AND p.is_verified = true
-    AND s.is_active = true;
+    AND p.deleted_at IS NULL  -- Exclure les prestataires supprimés
+    AND s.is_active = true
+    AND s.deleted_at IS NULL;  -- Exclure les services supprimés
 
 -- Vue des statistiques utilisateurs
 CREATE VIEW user_statistics AS
