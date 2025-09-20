@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'l10n/app_localizations.dart';
 import 'core/theme/app_theme.dart';
+import 'core/injection/injection.dart';
+import 'core/blocs/authentication/authentication_bloc.dart';
 import 'providers/theme_provider.dart';
 import 'providers/locale_provider.dart';
+import 'features/restaurant/presentation/pages/home_page.dart';
 import 'screens/settings/settings_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize dependencies
+  await configureDependencies();
+
   runApp(
     MultiProvider(
       providers: [
@@ -27,24 +36,27 @@ class MyApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final localeProvider = Provider.of<LocaleProvider>(context);
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'eService',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeProvider.themeMode,
-      locale: localeProvider.locale,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('en'),
-        Locale('fr'),
-      ],
-      home: const MyHomePage(),
+    return BlocProvider(
+      create: (context) => getIt<AuthenticationBloc>()..add(CheckAuthenticationStatus()),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'eService',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: themeProvider.themeMode,
+        locale: localeProvider.locale,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('fr'),
+        ],
+        home: const HomePage(), // Using the new HomePage with LLM features
+      ),
     );
   }
 }

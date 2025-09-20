@@ -1,1 +1,0 @@
-j'ai modifié beaucoups de chose dans @bank/mode_de_donnees/README.md 

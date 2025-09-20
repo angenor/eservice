@@ -1342,14 +1342,14 @@ void main() {
 ## 📅 Planning de Développement
 
 ### Sprint 1 (Semaine 1-2): Foundation
-- [ ] Setup projet Flutter avec Clean Architecture + BLoC
-- [ ] Configuration Supabase et dependency injection
-- [ ] Modèles et entités (Restaurant, Order, **LLM**)
-- [ ] Services de base et repositories
-- [ ] BLoCs principaux (Authentication, Location, **VoiceCommand**)
-- [ ] Écran d'accueil avec BlocProvider et **composants LLM de base**
-- [ ] **Configuration Speech-to-Text et TTS**
-- [ ] **Setup des tables LLM dans Supabase**
+- [X] Setup projet Flutter avec Clean Architecture + BLoC
+- [X] Configuration Supabase et dependency injection
+- [X] Modèles et entités (Restaurant, Order, **LLM**)
+- [X] Services de base et repositories
+- [X] BLoCs principaux (Authentication, Location, **VoiceCommand**)
+- [X] Écran d'accueil avec BlocProvider et **composants LLM de base**
+- [X] **Configuration Speech-to-Text et TTS**
+- [X] **Setup des tables LLM dans Supabase**
 
 ### Sprint 2 (Semaine 3-4): Discovery
 - [ ] Liste restaurants
