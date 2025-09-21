@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:lottie/lottie.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../blocs/voice_command/voice_command_bloc.dart';
@@ -103,7 +102,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
+              SizedBox(
                 width: 120,
                 height: 120,
                 child: Stack(

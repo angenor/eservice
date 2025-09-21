@@ -153,37 +153,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              RadioListTile<ThemeMode>(
+              ListTile(
+                leading: Icon(
+                  themeProvider.themeMode == ThemeMode.light
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked
+                ),
                 title: Text(l10n.lightMode),
-                value: ThemeMode.light,
-                groupValue: themeProvider.themeMode,
-                onChanged: (ThemeMode? value) {
-                  if (value != null) {
-                    themeProvider.setThemeMode(value);
-                    Navigator.of(context).pop();
-                  }
+                onTap: () {
+                  themeProvider.setThemeMode(ThemeMode.light);
+                  Navigator.of(context).pop();
                 },
               ),
-              RadioListTile<ThemeMode>(
+              ListTile(
+                leading: Icon(
+                  themeProvider.themeMode == ThemeMode.dark
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked
+                ),
                 title: Text(l10n.darkMode),
-                value: ThemeMode.dark,
-                groupValue: themeProvider.themeMode,
-                onChanged: (ThemeMode? value) {
-                  if (value != null) {
-                    themeProvider.setThemeMode(value);
-                    Navigator.of(context).pop();
-                  }
+                onTap: () {
+                  themeProvider.setThemeMode(ThemeMode.dark);
+                  Navigator.of(context).pop();
                 },
               ),
-              RadioListTile<ThemeMode>(
+              ListTile(
+                leading: Icon(
+                  themeProvider.themeMode == ThemeMode.system
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked
+                ),
                 title: Text(l10n.systemMode),
-                value: ThemeMode.system,
-                groupValue: themeProvider.themeMode,
-                onChanged: (ThemeMode? value) {
-                  if (value != null) {
-                    themeProvider.setThemeMode(value);
-                    Navigator.of(context).pop();
-                  }
+                onTap: () {
+                  themeProvider.setThemeMode(ThemeMode.system);
+                  Navigator.of(context).pop();
                 },
               ),
             ],
@@ -208,26 +211,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              RadioListTile<Locale>(
+              ListTile(
+                leading: Icon(
+                  localeProvider.locale.languageCode == 'en'
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked
+                ),
                 title: Text(l10n.english),
-                value: const Locale('en'),
-                groupValue: localeProvider.locale,
-                onChanged: (Locale? value) {
-                  if (value != null) {
-                    localeProvider.setLocale(value);
-                    Navigator.of(context).pop();
-                  }
+                onTap: () {
+                  localeProvider.setLocale(const Locale('en'));
+                  Navigator.of(context).pop();
                 },
               ),
-              RadioListTile<Locale>(
+              ListTile(
+                leading: Icon(
+                  localeProvider.locale.languageCode == 'fr'
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked
+                ),
                 title: Text(l10n.french),
-                value: const Locale('fr'),
-                groupValue: localeProvider.locale,
-                onChanged: (Locale? value) {
-                  if (value != null) {
-                    localeProvider.setLocale(value);
-                    Navigator.of(context).pop();
-                  }
+                onTap: () {
+                  localeProvider.setLocale(const Locale('fr'));
+                  Navigator.of(context).pop();
                 },
               ),
             ],

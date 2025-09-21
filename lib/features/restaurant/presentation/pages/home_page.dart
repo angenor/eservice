@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/blocs/location/location_bloc.dart';
-import '../../../../core/blocs/authentication/authentication_bloc.dart';
 import '../../../../core/injection/injection.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -250,7 +248,7 @@ class HomePageBody extends StatelessWidget {
 
   Widget _buildRestaurantList() {
     // Placeholder restaurant list
-    return Container(
+    return SizedBox(
       height: 200,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -278,7 +276,7 @@ class HomePageBody extends StatelessWidget {
 
   Widget _buildShimmerList() {
     return SliverToBoxAdapter(
-      child: Container(
+      child: SizedBox(
         height: 200,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,

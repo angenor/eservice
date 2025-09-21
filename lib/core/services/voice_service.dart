@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:injectable/injectable.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 abstract class VoiceService {
@@ -39,8 +38,8 @@ class VoiceServiceImpl implements VoiceService {
     
     // Initialize speech to text
     _isInitialized = await _speechToText.initialize(
-      onError: (error) => print('Speech recognition error: $error'),
-      onStatus: (status) => print('Speech recognition status: $status'),
+      onError: (error) {},
+      onStatus: (status) {},
     );
     
     if (!_isInitialized) {
@@ -90,8 +89,10 @@ class VoiceServiceImpl implements VoiceService {
         localeId: _currentLanguage,
         listenFor: const Duration(seconds: 30),
         pauseFor: const Duration(seconds: 3),
-        partialResults: true,
-        onDevice: false,
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          onDevice: false,
+        ),
       );
       return true;
     }
