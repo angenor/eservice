@@ -1352,20 +1352,20 @@ void main() {
 - [X] **Setup des tables LLM dans Supabase**
 
 ### Sprint 2 (Semaine 3-4): Discovery
-- [ ] Liste restaurants
-- [ ] Page détail restaurant
-- [ ] **Système de recherche intelligente avec LLM**
-- [ ] **Recherche vocale intégrée**
-- [ ] Géolocalisation
-- [ ] **Recommandations LLM de base**
+- [X] Liste restaurants
+- [X] Page détail restaurant
+- [X] **Système de recherche intelligente avec LLM**
+- [X] **Recherche vocale intégrée**
+- [X] Géolocalisation
+- [X] **Recommandations LLM de base**
 
 ### Sprint 3 (Semaine 5-6): Ordering
-- [ ] Personnalisation de plats
-- [ ] **Commandes vocales simples ("Ajouter au panier")**
-- [ ] Gestion du panier
-- [ ] Processus de checkout
-- [ ] Intégration paiements
-- [ ] **Validation d'intention de commande LLM**
+- [X] Personnalisation de plats
+- [X] **Commandes vocales simples ("Ajouter au panier")**
+- [X] Gestion du panier
+- [X] Processus de checkout
+- [X] Intégration paiements
+- [X] **Validation d'intention de commande LLM**
 
 ### Sprint 4 (Semaine 7-8): Tracking
 - [ ] Tracking temps réel

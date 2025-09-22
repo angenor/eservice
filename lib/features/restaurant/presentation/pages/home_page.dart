@@ -10,6 +10,8 @@ import '../../../llm/presentation/widgets/voice_input_button.dart';
 import '../widgets/search_bar_widget.dart';
 import '../widgets/cuisine_categories.dart';
 import '../widgets/restaurant_card.dart';
+import '../../domain/entities/restaurant.dart';
+import '../../domain/entities/location.dart' as rest_location;
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -258,16 +260,7 @@ class HomePageBody extends StatelessWidget {
           return Container(
             width: 280,
             margin: EdgeInsets.only(right: 16),
-            child: RestaurantCard(
-              name: 'Restaurant ${index + 1}',
-              imageUrl: '',
-              rating: 4.5,
-              deliveryTime: '30-45 min',
-              deliveryFee: 1000,
-              onTap: () {
-                // Navigate to restaurant detail
-              },
-            ),
+            child: _buildMockRestaurantCard(index),
           );
         },
       ),
@@ -300,6 +293,45 @@ class HomePageBody extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildMockRestaurantCard(int index) {
+    // Create a mock restaurant for display
+    final mockRestaurant = Restaurant(
+      id: 'mock_$index',
+      name: 'Restaurant ${index + 1}',
+      description: 'Delicious food and fast delivery',
+      category: CuisineCategory.values[index % CuisineCategory.values.length],
+      certifications: ['Halal', 'Bio'],
+      location: rest_location.Location(
+        latitude: 0.0,
+        longitude: 0.0,
+      ),
+      openingHours: {
+        'monday': TimeSlot(opening: '09:00', closing: '22:00'),
+        'tuesday': TimeSlot(opening: '09:00', closing: '22:00'),
+        'wednesday': TimeSlot(opening: '09:00', closing: '22:00'),
+        'thursday': TimeSlot(opening: '09:00', closing: '22:00'),
+        'friday': TimeSlot(opening: '09:00', closing: '22:00'),
+        'saturday': TimeSlot(opening: '10:00', closing: '23:00'),
+        'sunday': TimeSlot(opening: '10:00', closing: '23:00'),
+      },
+      currentStatus: RestaurantStatus.open,
+      averageRating: 4.5,
+      reviewCount: 120,
+      minimumOrder: 5000,
+      deliveryFee: 1000,
+      averagePreparationTime: 30,
+      acceptedPayments: [PaymentMethod.mobileMoney, PaymentMethod.cash],
+      badges: ['Rapide', 'Fiable'],
+    );
+
+    return RestaurantCard(
+      restaurant: mockRestaurant,
+      onTap: () {
+        // Navigate to restaurant detail
+      },
     );
   }
 }

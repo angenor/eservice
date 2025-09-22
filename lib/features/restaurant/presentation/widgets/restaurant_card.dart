@@ -1,21 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../domain/entities/restaurant.dart';
 
 class RestaurantCard extends StatelessWidget {
-  final String name;
-  final String imageUrl;
-  final double rating;
-  final String deliveryTime;
-  final double deliveryFee;
+  final Restaurant restaurant;
   final VoidCallback onTap;
-  
+
   const RestaurantCard({
     super.key,
-    required this.name,
-    required this.imageUrl,
-    required this.rating,
-    required this.deliveryTime,
-    required this.deliveryFee,
+    required this.restaurant,
     required this.onTap,
   });
   
@@ -66,7 +59,7 @@ class RestaurantCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Text(
-                      name,
+                      restaurant.name,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -84,7 +77,7 @@ class RestaurantCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          rating.toStringAsFixed(1),
+                          restaurant.averageRating.toStringAsFixed(1),
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -107,7 +100,7 @@ class RestaurantCard extends StatelessWidget {
                         const SizedBox(width: 2),
                         Flexible(
                           child: Text(
-                            deliveryTime,
+                            '${restaurant.averagePreparationTime} min',
                             style: TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
@@ -127,7 +120,7 @@ class RestaurantCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        'Livraison: ${deliveryFee.toStringAsFixed(0)} FCFA',
+                        'Livraison: ${restaurant.deliveryFee.toStringAsFixed(0)} FCFA',
                         style: TextStyle(
                           fontSize: 11,
                           color: AppColors.textPrimary,
